@@ -1,0 +1,153 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+labels:
+  template: x509-certificate-exporter
+metadata:
+  name: x509-certificate-exporter
+  annotations:
+    description: x509-certificate-exporter
+objects:
+- apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    name: x509-certificate-exporter
+    labels:
+      app.kubernetes.io/component: x509-certificate-exporter
+      app.kubernetes.io/name: x509-certificate-exporter
+
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    name: x509-certificate-exporter-service-account
+    annotations:
+      kubernetes.io/service-account.name: x509-certificate-exporter
+  type: kubernetes.io/service-account-token
+
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    labels:
+      app.kubernetes.io/component: x509-certificate-exporter
+      app.kubernetes.io/name: x509-certificate-exporter
+    name: x509-certificate-exporter
+  spec:
+    replicas: ${{X509_CE_REPLICAS}}
+    selector:
+      matchLabels:
+        app.kubernetes.io/component: x509-certificate-exporter
+        app.kubernetes.io/name: x509-certificate-exporter
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/component: x509-certificate-exporter
+          app.kubernetes.io/name: x509-certificate-exporter
+      spec:
+        restartPolicy: Always
+        serviceAccountName: x509-certificate-exporter
+        affinity:
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                  - x509-certificate-exporter
+              topologyKey: "kubernetes.io/hostname"
+        containers:
+        - image: "${IMAGE}:${IMAGE_TAG}"
+          name: x509-certificate-exporter
+          args:
+          - --expose-relative-metrics
+          - --watch-kube-secrets
+          - --secret-type=kubernetes.io/tls:tls.crt
+          # - --include-namespace={{ . | trim }}
+          - --expose-per-cert-error-metrics
+          - --listen-address=:${X509_CE_PORT}
+          ports:
+          - name: metrics
+            containerPort: ${{X509_CE_PORT}}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - sh
+                  - "-c"
+                  - sleep 5
+          readinessProbe:
+            httpGet:
+              path: /
+              port: ${{X509_CE_PORT}}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /
+              port: ${{X509_CE_PORT}}
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: ${{X509_CE_CPU_REQUESTS}}
+              memory: ${{X509_CE_MEMORY_REQUESTS}}
+            limits:
+              cpu: ${{X509_CE_CPU_LIMITS}}
+              memory: ${{X509_CE_MEMORY_LIMITS}}
+
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app.kubernetes.io/component: x509-certificate-exporter
+      app.kubernetes.io/name: x509-certificate-exporter
+    name: x509-certificate-exporter
+  spec:
+    ports:
+    - name: "metrics"
+      port: ${{X509_CE_PORT}}
+      targetPort: metrics
+    selector:
+      app.kubernetes.io/component: x509-certificate-exporter
+      app.kubernetes.io/name: x509-certificate-exporter
+
+parameters:
+- name: IMAGE
+  description: Image to use for x509-certificate-exporter
+  value: "quay.io/app-sre/x509-certificate-exporter"
+  required: true
+
+- name: IMAGE_TAG
+  description: x509-certificate-exporter version
+  value: "latest"
+  required: true
+
+- name: X509_CE_PORT
+  description: x509-certificate-exporter port
+  value: "8000"
+  required: true
+
+# Pod limits
+- name: X509_CE_REPLICAS
+  description: Prometheus export replicas
+  value: "3"
+  required: true
+
+- name: X509_CE_MEMORY_REQUESTS
+  description: Prometheus export memory requests
+  value: "64Mi"
+  required: true
+
+- name: X509_CE_MEMORY_LIMITS
+  description: Prometheus export memory limits
+  value: "64Mi"
+  required: true
+
+- name: X509_CE_CPU_REQUESTS
+  description: Prometheus export cpu requests
+  value: "100m"
+  required: true
+
+- name: X509_CE_CPU_LIMITS
+  description: Prometheus export cpu limits
+  value: "200m"
+  required: true
