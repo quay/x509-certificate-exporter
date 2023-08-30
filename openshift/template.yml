@@ -49,6 +49,7 @@ objects:
     name: x509-certificate-exporter-service-account
     annotations:
       kubernetes.io/service-account.name: x509-certificate-exporter
+      ignore-check.kube-linter.io/unset-cpu-requirements: "no cpu limits"
   type: kubernetes.io/service-account-token
 
 - apiVersion: apps/v1
@@ -124,7 +125,6 @@ objects:
               cpu: ${{X509_CE_CPU_REQUESTS}}
               memory: ${{X509_CE_MEMORY_REQUESTS}}
             limits:
-              cpu: ${{X509_CE_CPU_LIMITS}}
               memory: ${{X509_CE_MEMORY_LIMITS}}
 
 - apiVersion: v1
@@ -180,10 +180,5 @@ parameters:
 
 - name: X509_CE_CPU_REQUESTS
   description: Prometheus export cpu requests
-  value: "100m"
-  required: true
-
-- name: X509_CE_CPU_LIMITS
-  description: Prometheus export cpu limits
-  value: "200m"
+  value: "10m"
   required: true
