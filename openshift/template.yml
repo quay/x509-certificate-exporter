@@ -49,12 +49,13 @@ objects:
     name: x509-certificate-exporter-service-account
     annotations:
       kubernetes.io/service-account.name: x509-certificate-exporter
-      ignore-check.kube-linter.io/unset-cpu-requirements: "no cpu limits"
   type: kubernetes.io/service-account-token
 
 - apiVersion: apps/v1
   kind: Deployment
   metadata:
+    annotations:
+      ignore-check.kube-linter.io/unset-cpu-requirements: "no cpu limits"
     labels:
       app.kubernetes.io/component: x509-certificate-exporter
       app.kubernetes.io/name: x509-certificate-exporter
