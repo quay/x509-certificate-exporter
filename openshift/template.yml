@@ -76,14 +76,17 @@ objects:
         serviceAccountName: x509-certificate-exporter
         affinity:
           podAntiAffinity:
-            requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-                matchExpressions:
-                - key: app.kubernetes.io/component
-                  operator: In
-                  values:
-                  - x509-certificate-exporter
-              topologyKey: "kubernetes.io/hostname"
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                namespaceSelector: {}
+                labelSelector:
+                  matchExpressions:
+                  - key: ${{QUAY_APP_COMPONENT_LABEL_KEY}}
+                    operator: In
+                    values:
+                    - ${{QUAY_APP_COMPONENT_LABEL_VALUE}}
+                  topologyKey: kubernetes.io/hostname
         containers:
         - image: "${IMAGE}:${IMAGE_VERSION}"
           name: x509-certificate-exporter
@@ -188,4 +191,10 @@ parameters:
   description: One or more kubernetes secret type and key to watch
   value: "Opaque:client.pem"
   required: true
+
+- name: QUAY_APP_COMPONENT_LABEL_KEY
+  value: "quay-py3-component"
+
+- name: QUAY_APP_COMPONENT_LABEL_VALUE
+  value: "app-py3"
 
